@@ -1,0 +1,134 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Procesamiento de CSV</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+  <h1>Procesamiento de CSV</h1>
+  <input type="file" id="csv-file" accept=".csv">
+  <table id="result-table">
+    <thead>
+      <tr>
+        <th>ID Externo</th>
+        <th>Equipo de Asistencia</th>
+        <th>Nombre del Mensaje</th>
+        <th>Autor del Mensaje</th>
+        <th>Creado el</th>
+        <th>Creado en</th>
+        <th>Nuevo Valor de Carácter</th>
+        <th>Tiempo de Proceso</th>
+      </tr>
+    </thead>
+    <tbody id="result-body"></tbody>
+  </table>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+  <script>
+    // Función para leer y procesar el archivo CSV
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        const contents = e.target.result;
+        const lines = contents.split("\n");
+        const resultBody = document.getElementById("result-body");
+        let currentTicket = null;
+        let currentTicketStartDate = null;
+        let currentStage = null;
+
+        resultBody.innerHTML = ""; // Limpiar resultados anteriores
+
+        for (let i = 1; i < lines.length; i++) {
+          const fields = lines[i].split(",");
+
+          if (fields.length >= 7) {
+            const idExterno = fields[0].replace(/"/g, "").trim();
+            const equipoAsistencia = fields[1].replace(/"/g, "").trim();
+            const nombreMensaje = fields[2].replace(/"/g, "").trim();
+            const autorMensaje = fields[3].replace(/"/g, "").trim();
+            const creadoEl = fields[4].replace(/"/g, "").trim();
+            const creadoEn = fields[5].replace(/"/g, "").trim();
+            const nuevoValorCaracter = fields[6].replace(/"/g, "").trim();
+
+            if (currentTicket !== nombreMensaje) {
+              currentTicket = nombreMensaje;
+              currentTicketStartDate = moment(creadoEn, "YYYY-MM-DD HH:mm:ss");
+              currentStage = "Consulta";
+            }
+
+            const currentMomentDate = moment(creadoEn, "YYYY-MM-DD HH:mm:ss");
+            const processTime = calculateProcessTime(currentTicketStartDate, currentMomentDate);
+
+            if (nuevoValorCaracter) {
+              currentStage = nuevoValorCaracter;
+              currentTicketStartDate = moment(creadoEn, "YYYY-MM-DD HH:mm:ss");
+            }
+
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${idExterno}</td>
+              <td>${equipoAsistencia}</td>
+              <td>${nombreMensaje}</td>
+              <td>${autorMensaje}</td>
+              <td>${creadoEl}</td>
+              <td>${creadoEn}</td>
+              <td>${nuevoValorCaracter}</td>
+              <td>${currentStage} - ${processTime}</td>
+            `;
+
+            resultBody.appendChild(row);
+          }
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
+    // Función para calcular el tiempo de proceso en días, horas y minutos
+    function calculateProcessTime(startDate, endDate) {
+      if (!startDate || !endDate || !startDate.isValid() || !endDate.isValid()) {
+        return ""; // Si alguna de las fechas es nula o inválida, retorna una cadena vacía
+      }
+
+      const duration = moment.duration(endDate.diff(startDate));
+      const days = duration.days();
+      const hours = duration.hours();
+      const minutes = duration.minutes();
+
+      const processTime = `${Math.abs(days)} días, ${Math.abs(hours)} horas, ${Math.abs(minutes)} minutos`;
+
+      if (duration.asSeconds() < 0) {
+        return `-${processTime}`;
+      }
+
+      return processTime;
+    }
+
+    // Escuchar cambios en la selección del archivo CSV
+    document.getElementById("csv-file").addEventListener("change", handleFileSelect);
+  </script>
+</body>
+</html>
+
